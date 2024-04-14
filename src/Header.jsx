@@ -6,15 +6,18 @@ const Header = () => {
   const [amount, setAmount] = useState('');
   const [change, setChange] = useState('');
   const [buttonText, setButtonText] = useState('Enter an amount');
+  const [buttonColor, setButtonColor] = useState('bg-gray-200 text-gray-600');
 
   const handleAmountChange = (event) => {
     setAmount(event.target.value);
     setButtonText('Connect Wallet Address');
+    setButtonColor('bg-[#0680fb] text-white');
   };
 
   const handleSetChange = (event) => {
     setChange(event.target.value);
     setButtonText('Connect Wallet Address');
+    setButtonColor('bg-[#0680fb] text-white');
   };
 
   return (
@@ -77,7 +80,7 @@ const Header = () => {
           <p className="text-right mr-1 text-gray-500 pb-4 md:pb-12">$0</p>
           <hr/>
           <CollapsibleItem />
-          <button className={"w-10/12 mt-4 border bg-gray-200 px-4 py-3 rounded-xl ml-8 text-gray-600"}>{buttonText}</button>
+          <button className={`w-10/12 mt-4 border  px-4 py-3 rounded-xl ml-8 ${buttonColor}`}>{buttonText}</button>
         </div>
       </div>
     </div>

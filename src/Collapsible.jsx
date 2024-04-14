@@ -8,7 +8,7 @@ const Collapsible = ({ title, children }) => {
   };
 
   return (
-    <div className="">
+    <div className="ml-1">
       <div
         className="flex justify-between items-center p-1 cursor-pointer"
         onClick={toggleCollapsible}
