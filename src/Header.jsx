@@ -10,10 +10,10 @@ const Header = () => {
   return (
     <div className="mt-2 md:w-4/12 mx-auto md:mt-16">
         <div className="flex justify-around pb-2">
-            <h1 className="text-2xl mr-12">Swap tokens</h1>
-            <div className='flex mt-1 gap-4'>
+            <h1 className="text-2xl mr-36">Swap tokens</h1>
+            <div className='flex mt-1 gap-3'>
                 <RefreshCcw className='cursor-pointer hover:bg-gray-50 hover:border hover:rounded-md'/>
-                <LineChart className='cursor-pointer hover:bg-gray-50 hover:border hover:rounded-md'/>
+                <LineChart className='cursor-pointer hover:bg-gray-50 hover:border hover:rounded-md text-gray-400'/>
                 <Ellipsis className='cursor-pointer hover:bg-gray-50 hover:border hover:rounded-md'/>
             </div>
         </div><hr/>
