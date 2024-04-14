@@ -26,7 +26,14 @@ const Header = () => {
                 <h1 className="flex text-gray-800 hover:text-[#0680fb] cursor-pointer"><img src={"/tons.png"} width={40} height={40} className="rounded-full mr-1" /><span className="mt-1 text-3xl">TON</span><ChevronRight className="mt-2" /></h1>
                 <h1 className="text-3xl text-gray-400 mr-1">0.00</h1>
             </div>
-            <p className="text-right mr-1 text-gray-500 pb-4 md:pb-8">$0</p><hr/>
+            <p className="text-right mr-1 text-gray-500 pb-4 md:pb-8">$0</p>
+            <div className="flex items-center">
+      <hr className="flex-1 border-1 border-gray-300" />
+      <div className="mx-4 border px-1 py-1 rounded-full">
+        <ArrowRightLeft className="text-[#0680fb]" />
+      </div>
+      <hr className="flex-1 border-1 border-gray-300" />
+    </div>
             <div className="pt-8 md:pt-12">
             <div className="flex justify-between">
             <p className="font-lighter ml-2 text-gray-700">You receive</p>
