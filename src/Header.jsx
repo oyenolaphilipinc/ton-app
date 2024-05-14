@@ -1,12 +1,46 @@
 import React, { useState } from 'react';
-import { RefreshCcw, LineChart, Ellipsis, Wallet, ChevronRight, ArrowRightLeft } from 'lucide-react';
+import { RefreshCcw, LineChart, Ellipsis, Wallet, ChevronRight, ArrowRightLeft,  } from 'lucide-react';
 import CollapsibleItem from './Collapsible';
+import { DeDustClient } from '@dedust/sdk';
+import { useEffect } from 'react'
+import {
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure,
+  Button,
+  Flex,
+  Box,
+  InputGroup,
+  Input,
+  InputLeftElement,
+  Icon,
+  Tabs, TabList, TabPanels, Tab, TabPanel,
+  Image,
+  Text,
+} from '@chakra-ui/react'
+import { SearchIcon } from '@chakra-ui/icons';
 
-const Header = () => {
+
+const Header = ({coins}) => {
   const [amount, setAmount] = useState('');
   const [change, setChange] = useState('');
   const [buttonText, setButtonText] = useState('Enter an amount');
   const [buttonColor, setButtonColor] = useState('bg-gray-200 text-gray-600');
+  const [selectedToken, setSelectedToken] = useState(null); // State to store the selected token
+  const [selectedCoin, setSelectedCoin] = useState(null)
+  const [filteredCoins, setFilteredCoins] = useState(coins); // State to store filtered coins
+  const { isOpen, onOpen, onClose } = useDisclosure()
+  const { isOpen: isSecondModalOpen, onOpen: onSecondModalOpen, onClose: onSecondModalClose } = useDisclosure() // State and functions for second modal
+
+  useEffect(() => {
+    // Initialize filtered coins with all coins initially
+    setFilteredCoins(coins);
+  }, [coins]);
 
   const handleAmountChange = (event) => {
     setAmount(event.target.value);
@@ -18,6 +52,25 @@ const Header = () => {
     setChange(event.target.value);
     setButtonText('Connect Wallet Address');
     setButtonColor('bg-[#0680fb] text-white');
+  };
+
+  // Function to filter coins based on search query
+  const handleSearch = (query) => {
+    const filtered = coins.filter(coin => {
+      return coin.name.toLowerCase().includes(query.toLowerCase()) || coin.symbol.toLowerCase().includes(query.toLowerCase());
+    });
+    setFilteredCoins(filtered);
+  };
+
+  // Function to handle selection of a token
+  const handleTokenSelection = (token) => {
+    setSelectedToken(token);
+    onClose(); // Close the modal
+  };
+
+  const handleCoinSelection = (token) => {
+    setSelectedCoin(token);
+    onSecondModalClose(); // Close the modal
   };
 
   return (
@@ -38,8 +91,8 @@ const Header = () => {
         </div>
         <div className="mt-2 ml-2 flex justify-between">
           <h1 className="flex text-gray-800 hover:text-[#0680fb] cursor-pointer">
-            <img src={"/tons.png"} width={40} height={40} className="rounded-full mr-1" />
-            <span className="mt-1 text-3xl">TON</span>
+            <img src={selectedToken ? selectedToken.imageUrl : '/tons.png'} width={40} height={40} className="rounded-full mr-1" />
+            <span className="mt-1 text-3xl" onClick={onOpen}>{selectedToken ? selectedToken.symbol : 'Ton'}</span>
             <ChevronRight className="mt-2" />
           </h1>
           <input
@@ -64,9 +117,9 @@ const Header = () => {
             <p className="flex mr-2 text-gray-500"><Wallet className="w-4 mr-1"/>0</p>
           </div>
           <div className="mt-2 ml-2 flex justify-between">
-            <h1 className="flex text-gray-800 hover:text-[#0680fb] cursor-pointer">
-              <img src={"/log.png"} width={40} height={40} className="rounded-full mr-1" />
-              <span className="mt-1 text-3xl">STON</span>
+            <h1 className="flex text-gray-800 hover:text-[#0680fb] cursor-pointer" onClick={onSecondModalOpen}>
+              <img src={selectedCoin ? selectedCoin.imageUrl : "/log.png"} width={40} height={40} className="rounded-full mr-1" />
+              <span className="mt-1 text-3xl">{selectedCoin ? selectedCoin.symbol : 'STON'}</span>
               <ChevronRight className="mt-2" />
             </h1>
             <input
@@ -83,6 +136,125 @@ const Header = () => {
           <button className={`w-10/12 mt-4 border  px-4 py-3 rounded-xl ml-8 ${buttonColor}`}>{buttonText}</button>
         </div>
       </div>
+
+
+      <Modal 
+      isCentered
+      onClose={onClose}
+      isOpen={isOpen}
+      motionPreset='slideInBottom'>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Select token</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Flex direction={'column'}>
+              <Box>
+                <InputGroup>
+                  <InputLeftElement>
+                    <SearchIcon />
+                  </InputLeftElement>
+                  <Input placeholder='Search assets or address' onChange={(e) => handleSearch(e.target.value)} />
+                </InputGroup>
+              </Box>
+
+              <Tabs>
+                <TabList>
+                  <Tab>Assets</Tab>
+                  <Tab>Favourite</Tab>
+                </TabList>
+
+                <TabPanels>
+                  <TabPanel>
+                    <Flex direction={'column'} gap={5} >
+                      {filteredCoins && filteredCoins.map((coin, index)=>{
+                        return(
+                          <Flex key={index} gap={4} alignItems={'center'} onClick={() => handleTokenSelection(coin)}>
+                            <Box>
+                              <Image src={coin.imageUrl} w={10} />
+                            </Box>
+
+                            <Flex direction={'column'}>
+                              <Text fontWeight={'bolder'}>{coin.symbol}</Text>
+                              <Text>{coin.name}</Text>
+                            </Flex>
+                          </Flex>
+                        )
+                      })}
+
+                    </Flex>
+                  </TabPanel>
+                </TabPanels>
+              </Tabs>
+            </Flex>
+          </ModalBody>
+
+          <ModalFooter>
+            <Button  colorScheme='blue' mr={3} onClick={onClose}>
+              Close
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      <Modal 
+      isCentered
+      onClose={onSecondModalClose}
+      isOpen={isSecondModalOpen}
+      motionPreset='slideInBottom'>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Select token</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Flex direction={'column'}>
+              <Box>
+                <InputGroup>
+                  <InputLeftElement>
+                    <SearchIcon />
+                  </InputLeftElement>
+                  <Input placeholder='Search assets or address' onChange={(e) => handleSearch(e.target.value)} />
+                </InputGroup>
+              </Box>
+
+              <Tabs>
+                <TabList>
+                  <Tab>Assets</Tab>
+                  <Tab>Favourite</Tab>
+                </TabList>
+
+                <TabPanels>
+                  <TabPanel>
+                    <Flex direction={'column'} gap={5} >
+                      {filteredCoins && filteredCoins.map((coin, index)=>{
+                        return(
+                          <Flex key={index} gap={4} alignItems={'center'} onClick={() => handleCoinSelection(coin)}>
+                            <Box>
+                              <Image src={coin.imageUrl} w={10} />
+                            </Box>
+
+                            <Flex direction={'column'}>
+                              <Text fontWeight={'bolder'}>{coin.symbol}</Text>
+                              <Text>{coin.name}</Text>
+                            </Flex>
+                          </Flex>
+                        )
+                      })}
+
+                    </Flex>
+                  </TabPanel>
+                </TabPanels>
+              </Tabs>
+            </Flex>
+          </ModalBody>
+
+          <ModalFooter>
+            <Button  colorScheme='blue' mr={3} onClick={onSecondModalClose}>
+              Close
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </div>
   );
 }
