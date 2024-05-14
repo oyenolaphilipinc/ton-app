@@ -6,6 +6,7 @@ import { TonConnectUIProvider } from '@tonconnect/ui-react'
 import { ChakraProvider } from '@chakra-ui/react'
 
 
+
 const manifestUrl =
   "https://rose-gothic-goose-655.mypinata.cloud/ipfs/QmXZoJcQqFTFyo4VadNdU6b3eNkhqv2VrTTYGGqjAvq6Sr";
 
