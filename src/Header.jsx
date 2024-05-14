@@ -73,6 +73,10 @@ const Header = ({coins}) => {
     onSecondModalClose(); // Close the modal
   };
 
+  const swap = async()=>{
+    console.log('console log')
+  }
+
   return (
     <div className="mt-2 md:w-4/12 mx-auto md:mt-16">
       <div className="flex justify-around pb-2">
