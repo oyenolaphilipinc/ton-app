@@ -16,19 +16,21 @@ const App = () => {
       const pools = await dedustClient.getPools();
       
       // Filter pools with totalSupply more than 1000 and non-null metadata
-      const filteredPools = pools.filter(pool => parseInt(pool.totalSupply) > 100 && pool.assets[0].metadata !== null);
+      const filteredPools = pools.filter(pool => parseInt(pool.totalSupply) > 10 && pool.assets[0].metadata !== null);
       
       // Create a Map to store unique names and their corresponding image URLs and symbols
       const uniqueNamesWithImages = new Map();
-      
+      console.log(filteredPools)
       // Extract and store unique names and their corresponding image URLs from filtered pools
       filteredPools.forEach(pool => {
         const metadata = pool.assets[0].metadata;
+        const address = pool.assets[0].address
         if (metadata) {
           const name = metadata.name;
           const imageUrl = metadata.image;
           const symbol = metadata.symbol;
-          const combinedInfo = { imageUrl, symbol };
+          const contractAddress = address
+          const combinedInfo = { imageUrl, symbol, contractAddress };
           if (!uniqueNamesWithImages.has(name)) {
             uniqueNamesWithImages.set(name, combinedInfo);
           }

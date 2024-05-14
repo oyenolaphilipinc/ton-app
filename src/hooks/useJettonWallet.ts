@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
-import { JettonMinter } from "../contracts/JettonMinter";
-import { JettonWallet } from "../contracts/JettonWallet";
 import { useTonClient } from "./useTonClient";
 import { useAsyncInitialze } from "./useAsyncInitialize";
-import { Address, Cell, OpenedContract, toNano } from "ton-core";
+import { Address, Cell, OpenedContract, toNano } from "@ton/core";
 import { useTonConnect } from "./useTonConnect";
 
 const jettonMinterAddress = Address.parse(

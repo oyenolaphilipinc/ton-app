@@ -24,6 +24,18 @@ import {
   Text,
 } from '@chakra-ui/react'
 import { SearchIcon } from '@chakra-ui/icons';
+import { Address, toNano, Sender, fromNano } from "@ton/ton";
+import {
+  Asset,
+  Factory,
+  JettonRoot,
+  MAINNET_FACTORY_ADDR,
+  Pool,
+  PoolType,
+  VaultNative,
+} from "@dedust/sdk";
+import { useTonConnect } from './hooks/useTonConnect';
+import { useTonClient } from './hooks/useTonClient';
 
 
 const Header = ({coins}) => {
@@ -35,12 +47,29 @@ const Header = ({coins}) => {
   const [selectedCoin, setSelectedCoin] = useState(null)
   const [filteredCoins, setFilteredCoins] = useState(coins); // State to store filtered coins
   const { isOpen, onOpen, onClose } = useDisclosure()
-  const { isOpen: isSecondModalOpen, onOpen: onSecondModalOpen, onClose: onSecondModalClose } = useDisclosure() // State and functions for second modal
+  const { isOpen: isSecondModalOpen, onOpen: onSecondModalOpen, onClose: onSecondModalClose } = useDisclosure()
+  const {sender, userAddress, connected} = useTonConnect()
+  const client = useTonClient()
+  const [tonBalance, setTonBalance] = useState(null)
+  const [selectedContract, setSelectedContract] = useState('')
 
   useEffect(() => {
     // Initialize filtered coins with all coins initially
     setFilteredCoins(coins);
   }, [coins]);
+
+  const fetchBalance = async ()=>{
+     if(client && connected){
+  const wallet = await client.getBalance(userAddress)
+  const balance = fromNano(wallet)
+    setTonBalance(balance)
+    console.log(balance)
+    }
+  }
+
+  useEffect(()=>{
+   fetchBalance()
+  },[client])
 
   const handleAmountChange = (event) => {
     setAmount(event.target.value);
@@ -91,7 +120,7 @@ const Header = ({coins}) => {
       <div className="pt-4">
         <div className="flex justify-between">
           <p className="font-lighter ml-2 text-gray-700">You Send</p>
-          <p className="flex mr-2 text-gray-500"><Wallet className="w-4 mr-1"/>0</p>
+          <p className="flex mr-2 text-gray-500"><Wallet className="w-4 mr-1"/>{selectedToken && selectedToken.symbol == 'TON' ? tonBalance: '0' }</p>
         </div>
         <div className="mt-2 ml-2 flex justify-between">
           <h1 className="flex text-gray-800 hover:text-[#0680fb] cursor-pointer">

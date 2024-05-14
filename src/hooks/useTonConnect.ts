@@ -1,6 +1,6 @@
 import { useTonConnectUI, useTonAddress } from "@tonconnect/ui-react";
 
-import { Sender, SenderArguments } from "ton-core";
+import { Sender, SenderArguments } from "@ton/core";
 
 export function useTonConnect(): {
   sender: Sender;
