@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { RefreshCcw, LineChart, Ellipsis, Wallet, ChevronRight, ArrowRightLeft,  } from 'lucide-react';
 import CollapsibleItem from './Collapsible';
-import { DeDustClient } from '@dedust/sdk';
+import { DeDustClient, JettonWallet, VaultJetton } from '@dedust/sdk';
 import { useEffect } from 'react'
 import {
   Modal,
@@ -53,7 +53,7 @@ const Header = ({coins}) => {
   const {sender, userAddress, connected} = useTonConnect()
   const client = useTonClient()
   const [tonBalance, setTonBalance] = useState()
-  const [selectedContract, setSelectedContract] = useState('')
+  const [amountOut, setAmountOut] = useState(null)
 
   useEffect(() => {
     // Initialize filtered coins with all coins initially
@@ -177,6 +177,142 @@ const Header = ({coins}) => {
 
   }
 
+  const fetchPrice = async(address, amount)=>{
+    console.log('AMount', amount),
+    console.log('ca', address)
+    const client = new TonClient4({
+    endpoint: "https://mainnet-v4.tonhubapi.com",
+  });
+    console.log('console log')
+    const factory = client.open(
+      Factory.createFromAddress(MAINNET_FACTORY_ADDR)
+    )
+
+    
+
+    const contractAddress = Address.parse(address)
+    
+    const jetton = client.open(JettonRoot.createFromAddress(contractAddress))
+
+    const pool = client.open(
+      Pool.createFromAddress(
+        await factory.getPoolAddress({
+          poolType: PoolType.VOLATILE,
+          assets: [Asset.native(), Asset.jetton(jetton.address)]
+        })
+      )
+    )
+
+    const nativeVault = client.open(
+      VaultNative.createFromAddress(
+        await factory.getVaultAddress(Asset.native())
+      )
+    )
+
+    const lastBlock = await client.getLastBlock()
+    const poolState = await client.getAccountLite(
+      lastBlock.last.seqno,
+      pool.address
+    );
+     if (poolState.account.state.type !== "active") {
+    throw new Error("Pool is not exist.");
+  }
+
+   const vaultState = await client.getAccountLite(
+    lastBlock.last.seqno,
+    nativeVault.address,
+  );
+  if (vaultState.account.state.type !== "active") {
+    throw new Error("Native Vault is not exist.");
+  }
+
+  const amountIn = toNano(amount);
+
+  const { amountOut: expectedAmountOut } = await pool.getEstimatedSwapOut({
+    assetIn: Asset.native(),
+    amountIn,
+  });
+
+  setAmountOut(amountOut)
+  // Slippage handling (1%)
+  const minAmountOut = (expectedAmountOut * 99n) / 100n; // expectedAmountOut - 1%
+  console.log(fromNano(minAmountOut))
+
+
+  }
+
+ const swapJettontoTon = async (from, amount) => {
+  console.log('Amount', amount);
+  console.log('fromAddress', from);
+  console.log('selectedToken', selectedToken);
+
+  const client = new TonClient4({
+    endpoint: "https://mainnet-v4.tonhubapi.com",
+  });
+
+  const factory = client.open(
+    Factory.createFromAddress(MAINNET_FACTORY_ADDR)
+  );
+
+  const fromAddress = Address.parse(from);
+
+  // Open the jetton vault
+  const jettonVault = client.open(await factory.getJettonVault(fromAddress));
+  const jettonRoot = client.open(JettonRoot.createFromAddress(fromAddress));
+  console.log(sender)
+  const jettonWallet = client.open(await jettonRoot.getWallet(sender.address));
+
+  console.log(jettonWallet.address)
+  // Open the pool
+  const pool = client.open(
+    Pool.createFromAddress(
+      await factory.getPoolAddress({
+        poolType: PoolType.VOLATILE,
+        assets: [Asset.native(), Asset.jetton(jettonRoot.address)],
+      })
+    )
+  );
+
+  const amountIn = toNano(amount);
+
+  // Estimate the amount of TON to receive
+  const { amountOut: expectedAmountOut } = await pool.getEstimatedSwapOut({
+    assetIn: Asset.jetton(jettonRoot.address),
+    amountIn,
+  });
+
+
+
+  
+
+  const minAmountOut = (expectedAmountOut * 99n) / 100n;
+  console.log('Expected Amount Out (TON):', fromNano(expectedAmountOut));
+  console.log('Min Amount Out (TON):', fromNano(minAmountOut));
+
+  // Sending the transfer from the Jetton Wallet to the Jetton Vault
+  await jettonWallet.sendTransfer(sender, toNano("0.185"), {
+    amount: amountIn,
+    destination: jettonVault.address,
+    responseAddress: sender.address,
+    forwardAmount: toNano("0.125"),
+    forwardPayload: VaultJetton.createSwapPayload({
+      poolAddress: pool.address,
+      limit: minAmountOut,
+    }),
+  });
+
+  console.log('Swap initiated from Jetton to TON');
+};
+
+
+  const handleSwap= async ()=>{
+    if(selectedToken.symbol === "TON"){
+      swap(selectedCoin.contractAddress, amount)
+    }else if(selectedCoin.symbol === "TON"){
+      swapJettontoTon(selectedToken.contractAddress, amount)
+    }
+  }
+
   return (
     <div className="mt-2 md:w-4/12 mx-auto md:mt-16">
       <div className="flex justify-around pb-2">
@@ -237,12 +373,7 @@ const Header = ({coins}) => {
           <p className="text-right mr-1 text-gray-500 pb-4 md:pb-12">$0</p>
           <hr/>
           <CollapsibleItem />
-          <button onClick={()=>{
-            if(selectedCoin != null){
-              swap(selectedCoin.contractAddress, amount)
-            }
-            
-          }} className={`w-10/12 mt-4 border  px-4 py-3 rounded-xl ml-8 ${buttonColor}`}>{connected ? 'Swap' : buttonText}</button>
+          <button onClick={handleSwap} className={`w-10/12 mt-4 border  px-4 py-3 rounded-xl ml-8 ${buttonColor}`}>{connected ? 'Swap' : buttonText}</button>
         </div>
       </div>
 
