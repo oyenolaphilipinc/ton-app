@@ -36,6 +36,8 @@ import {
 } from "@dedust/sdk";
 import { useTonConnect } from './hooks/useTonConnect';
 import { useTonClient } from './hooks/useTonClient';
+import { TonClient4 } from '@ton/ton';
+import { TonConnectUI } from '@tonconnect/ui-react';
 
 
 const Header = ({coins}) => {
@@ -50,7 +52,7 @@ const Header = ({coins}) => {
   const { isOpen: isSecondModalOpen, onOpen: onSecondModalOpen, onClose: onSecondModalClose } = useDisclosure()
   const {sender, userAddress, connected} = useTonConnect()
   const client = useTonClient()
-  const [tonBalance, setTonBalance] = useState(null)
+  const [tonBalance, setTonBalance] = useState()
   const [selectedContract, setSelectedContract] = useState('')
 
   useEffect(() => {
@@ -67,9 +69,9 @@ const Header = ({coins}) => {
     }
   }
 
-  useEffect(()=>{
-   fetchBalance()
-  },[client])
+  // useEffect(()=>{
+  //  fetchBalance()
+  // },[client])
 
   const handleAmountChange = (event) => {
     setAmount(event.target.value);
@@ -102,8 +104,77 @@ const Header = ({coins}) => {
     onSecondModalClose(); // Close the modal
   };
 
-  const swap = async()=>{
+  const swap = async(address, amount)=>{
+    console.log('AMount', amount),
+    console.log('ca', address)
+    const client = new TonClient4({
+    endpoint: "https://mainnet-v4.tonhubapi.com",
+  });
     console.log('console log')
+    const factory = client.open(
+      Factory.createFromAddress(MAINNET_FACTORY_ADDR)
+    )
+
+    
+
+    const contractAddress = Address.parse(address)
+    
+    const jetton = client.open(JettonRoot.createFromAddress(contractAddress))
+
+    const pool = client.open(
+      Pool.createFromAddress(
+        await factory.getPoolAddress({
+          poolType: PoolType.VOLATILE,
+          assets: [Asset.native(), Asset.jetton(jetton.address)]
+        })
+      )
+    )
+
+    const nativeVault = client.open(
+      VaultNative.createFromAddress(
+        await factory.getVaultAddress(Asset.native())
+      )
+    )
+
+    const lastBlock = await client.getLastBlock()
+    const poolState = await client.getAccountLite(
+      lastBlock.last.seqno,
+      pool.address
+    );
+     if (poolState.account.state.type !== "active") {
+    throw new Error("Pool is not exist.");
+  }
+
+   const vaultState = await client.getAccountLite(
+    lastBlock.last.seqno,
+    nativeVault.address,
+  );
+  if (vaultState.account.state.type !== "active") {
+    throw new Error("Native Vault is not exist.");
+  }
+
+  const amountIn = toNano(amount);
+
+  const { amountOut: expectedAmountOut } = await pool.getEstimatedSwapOut({
+    assetIn: Asset.native(),
+    amountIn,
+  });
+
+  // Slippage handling (1%)
+  const minAmountOut = (expectedAmountOut * 99n) / 100n; // expectedAmountOut - 1%
+  console.log(fromNano(minAmountOut))
+
+
+   await nativeVault.sendSwap(
+    sender,
+    {
+      poolAddress: pool.address,
+      amount: amountIn,
+      limit: minAmountOut,
+      gasAmount: toNano("0.25"),
+    },
+  );
+
   }
 
   return (
@@ -120,7 +191,7 @@ const Header = ({coins}) => {
       <div className="pt-4">
         <div className="flex justify-between">
           <p className="font-lighter ml-2 text-gray-700">You Send</p>
-          <p className="flex mr-2 text-gray-500"><Wallet className="w-4 mr-1"/>{selectedToken && selectedToken.symbol == 'TON' ? tonBalance: '0' }</p>
+          <p className="flex mr-2 text-gray-500"><Wallet className="w-4 mr-1"/>{selectedToken && selectedToken.symbol == 'TON' ? tonBalance : selectedToken != 'TON' ? '0' : tonBalance  }</p>
         </div>
         <div className="mt-2 ml-2 flex justify-between">
           <h1 className="flex text-gray-800 hover:text-[#0680fb] cursor-pointer">
@@ -147,7 +218,7 @@ const Header = ({coins}) => {
         <div className="pt-8 md:pt-12">
           <div className="flex justify-between">
             <p className="font-lighter ml-2 text-gray-700">You receive</p>
-            <p className="flex mr-2 text-gray-500"><Wallet className="w-4 mr-1"/>0</p>
+            <p className="flex mr-2 text-gray-500"><Wallet className="w-4 mr-1"/>{selectedToken && selectedToken.symbol == 'TON' ? tonBalance : selectedToken != 'TON' ? '0' : tonBalance  }</p>
           </div>
           <div className="mt-2 ml-2 flex justify-between">
             <h1 className="flex text-gray-800 hover:text-[#0680fb] cursor-pointer" onClick={onSecondModalOpen}>
@@ -166,7 +237,12 @@ const Header = ({coins}) => {
           <p className="text-right mr-1 text-gray-500 pb-4 md:pb-12">$0</p>
           <hr/>
           <CollapsibleItem />
-          <button className={`w-10/12 mt-4 border  px-4 py-3 rounded-xl ml-8 ${buttonColor}`}>{buttonText}</button>
+          <button onClick={()=>{
+            if(selectedCoin != null){
+              swap(selectedCoin.contractAddress, amount)
+            }
+            
+          }} className={`w-10/12 mt-4 border  px-4 py-3 rounded-xl ml-8 ${buttonColor}`}>{connected ? 'Swap' : buttonText}</button>
         </div>
       </div>
 
