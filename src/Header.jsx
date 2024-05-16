@@ -305,11 +305,61 @@ const Header = ({coins}) => {
 };
 
 
+const swapJettonToJetton = async(from, to, amount)=>{
+  console.log('Amount', amount);
+  console.log('fromAddress', from);
+  
+
+  const client = new TonClient4({
+    endpoint: "https://mainnet-v4.tonhubapi.com",
+  });
+
+  const factory = client.open(
+    Factory.createFromAddress(MAINNET_FACTORY_ADDR)
+  );
+
+  const fromAddress = Address.parse(from);
+  const toAddress = Address.parse(to);
+
+  const fromAsset = Asset.jetton(fromAddress)
+  const TON = Asset.native()
+  const toAsset = Asset.jetton(toAddress)
+
+const TON_FROM = client.open(await factory.getPool(PoolType.VOLATILE, [TON, fromAsset]));
+const TON_TO = client.open(await factory.getPool(PoolType.VOLATILE, [TON, toAsset]));
+
+ const jettonVault = client.open(await factory.getJettonVault(fromAddress));
+const FromRoot = client.open(JettonRoot.createFromAddress(fromAddress));
+const FromWallet = client.open(await FromRoot.getWallet(sender.address));
+
+const amountIn = toNano(amount);
+
+FromWallet.sendTransfer(
+  sender,
+  toNano("0.265"),
+  {
+    amount: amountIn,
+    destination: jettonVault.address,
+    responseAddress: sender.address,
+    forwardAmount: toNano('0.215'),
+    forwardPayload: VaultJetton.createSwapPayload({
+      poolAddress: TON_FROM.address,
+      next:{
+        poolAddress: TON_TO.address
+      }
+    })
+  }
+)
+}
+
+
   const handleSwap= async ()=>{
     if(selectedToken.symbol === "TON"){
       swap(selectedCoin.contractAddress, amount)
     }else if(selectedCoin.symbol === "TON"){
       swapJettontoTon(selectedToken.contractAddress, amount)
+    }else if(selectedCoin.symbol != "TON" && selectedToken.symbol != "TON"){
+      swapJettonToJetton(selectedToken.contractAddress, selectedCoin.contractAddress, amount)
     }
   }
 
