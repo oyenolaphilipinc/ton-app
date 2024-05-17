@@ -37,7 +37,8 @@ import {
 import { useTonConnect } from './hooks/useTonConnect';
 import { useTonClient } from './hooks/useTonClient';
 import { TonClient4 } from '@ton/ton';
-import { TonConnectUI } from '@tonconnect/ui-react';
+import { TonConnectUI, useTonConnectUI } from '@tonconnect/ui-react';
+import axios from 'axios'
 
 
 const Header = ({coins}) => {
@@ -45,7 +46,12 @@ const Header = ({coins}) => {
   const [change, setChange] = useState('');
   const [buttonText, setButtonText] = useState('Enter an amount');
   const [buttonColor, setButtonColor] = useState('bg-gray-200 text-gray-600');
-  const [selectedToken, setSelectedToken] = useState(null); // State to store the selected token
+  const [selectedToken, setSelectedToken] = useState({
+    contractAddress: "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c",
+    imageUrl: "https://assets.dedust.io/images/ton.webp",
+    name: "Toncoin",
+    symbol: "TON",
+  }); // State to store the selected token
   const [selectedCoin, setSelectedCoin] = useState(null)
   const [filteredCoins, setFilteredCoins] = useState(coins); // State to store filtered coins
   const { isOpen, onOpen, onClose } = useDisclosure()
@@ -54,6 +60,9 @@ const Header = ({coins}) => {
   const client = useTonClient()
   const [tonBalance, setTonBalance] = useState()
   const [amountOut, setAmountOut] = useState(null)
+ const [amountInUSD, setAmountInUSD] = useState(0);
+  const [fromTokenPrice, setFromTokenPrice] = useState(0); // State variable for fromTokenPrice
+  const [toTokenPrice, setToTokenPrice] = useState(0);
 
   useEffect(() => {
     // Initialize filtered coins with all coins initially
@@ -73,17 +82,149 @@ const Header = ({coins}) => {
   //  fetchBalance()
   // },[client])
 
+    useEffect(() => {
+    if (selectedToken && selectedCoin && amount) {
+      fetchEquivalentAmount(selectedToken.contractAddress, selectedCoin.contractAddress, amount);
+    }
+  }, [selectedToken, selectedCoin, amount]);
+
+
+const fetchTonPrice = async () => {
+  const apiKey = 'CG-HVh6stdWnBt3jz9oHydUvJMa'; // Replace with your actual API key
+
+  try {
+    const response = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
+      params: {
+        ids: 'the-open-network',
+        vs_currencies: 'usd'
+      },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-cg-demo-api-key': apiKey
+      }
+    });
+
+    return response.data['the-open-network'];
+  } catch (error) {
+    console.error('Error fetching TON price:', error);
+    return null; // Return null or some default value in case of error
+  }
+};
+
+
+   const fetchTokenDetails = async (contractAddress) => {
+    try {
+      const response = await axios.get(`https://api.dexscreener.io/latest/dex/tokens/${contractAddress}`);
+      
+      return response.data.pairs[0];
+    } catch (error) {
+      console.error('Error fetching token details:', error);
+      return null;
+    }
+  };
+const fetchEquivalentAmount = async (fromAddress, toAddress, amount) => {
+  try {
+    let fromTokenData;
+    let toTokenData;
+
+    if (selectedToken.symbol === "TON") {
+      fromTokenData = await fetchTonPrice();
+      toTokenData = await fetchTokenDetails(toAddress);
+
+      console.log("fromTokenData:", fromTokenData);
+      console.log("toTokenData:", toTokenData);
+
+      if (fromTokenData && toTokenData) {
+        const fromTokenPrice = parseFloat(fromTokenData.usd);
+        const toTokenPrice = parseFloat(toTokenData.priceUsd);
+
+        console.log("fromTokenPrice:", fromTokenPrice);
+        console.log("toTokenPrice:", toTokenPrice);
+
+        if (toTokenPrice !== 0) {
+          const equivalentAmount = (amount * fromTokenPrice) / toTokenPrice;
+          console.log("Equivalent amount:", equivalentAmount);
+          const amountInUSD = amount * fromTokenPrice
+          console.log("real", amountInUSD)
+          setAmountInUSD(amountInUSD)
+          setAmountOut(equivalentAmount);
+          setFromTokenPrice(fromTokenPrice)
+          setToTokenPrice(toTokenPrice)
+        } else {
+          console.error("Error: Division by zero (toTokenPrice is 0)");
+        }
+      }
+    } else if (selectedCoin.symbol === "TON") {
+      fromTokenData = await fetchTokenDetails(fromAddress);
+      toTokenData = await fetchTonPrice();
+
+      console.log("fromTokenData:", fromTokenData);
+      console.log("toTokenData:", toTokenData);
+
+      if (fromTokenData && toTokenData) {
+        const fromTokenPrice = parseFloat(fromTokenData.priceUsd);
+        const toTokenPrice = parseFloat(toTokenData.usd);
+        
+        console.log("fromTokenPrice:", fromTokenPrice);
+        console.log("toTokenPrice:", toTokenPrice);
+
+        if (toTokenPrice !== 0) {
+          const equivalentAmount = (amount * fromTokenPrice) / toTokenPrice;
+          console.log("Equivalent amount:", equivalentAmount);
+          const amountInUSD = amount * fromTokenPrice
+          console.log("real", amountInUSD)
+          setAmountOut(equivalentAmount);
+          setAmountInUSD(amountInUSD)
+          setFromTokenPrice(fromTokenPrice)
+          setToTokenPrice(toTokenPrice)
+        } else {
+          console.error("Error: Division by zero (toTokenPrice is 0)");
+        }
+      }
+    } else {
+      fromTokenData = await fetchTokenDetails(fromAddress);
+      toTokenData = await fetchTokenDetails(toAddress);
+
+      console.log("fromTokenData:", fromTokenData);
+      console.log("toTokenData:", toTokenData);
+
+      if (fromTokenData && toTokenData) {
+        const fromTokenPrice = parseFloat(fromTokenData.priceUsd);
+        const toTokenPrice = parseFloat(toTokenData.priceUsd);
+
+        console.log("fromTokenPrice:", fromTokenPrice);
+        console.log("toTokenPrice:", toTokenPrice);
+
+        if (toTokenPrice !== 0) {
+          const equivalentAmount = (amount * fromTokenPrice) / toTokenPrice;
+          console.log("Equivalent amount:", equivalentAmount);
+          const amountInUSD = amount * fromTokenPrice
+          setAmountOut(equivalentAmount);
+          setAmountInUSD(amountInUSD)
+          setFromTokenPrice(fromTokenPrice)
+          setToTokenPrice(toTokenPrice)
+        } else {
+          console.error("Error: Division by zero (toTokenPrice is 0)");
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching equivalent amount:', error);
+  }
+};
+
+
+
+ 
+
+
   const handleAmountChange = (event) => {
     setAmount(event.target.value);
     setButtonText('Connect Wallet Address');
     setButtonColor('bg-[#0680fb] text-white');
   };
 
-  const handleSetChange = (event) => {
-    setChange(event.target.value);
-    setButtonText('Connect Wallet Address');
-    setButtonColor('bg-[#0680fb] text-white');
-  };
+ 
 
   // Function to filter coins based on search query
   const handleSearch = (query) => {
@@ -289,6 +430,8 @@ const Header = ({coins}) => {
   console.log('Expected Amount Out (TON):', fromNano(expectedAmountOut));
   console.log('Min Amount Out (TON):', fromNano(minAmountOut));
 
+  
+
   // Sending the transfer from the Jetton Wallet to the Jetton Vault
   await jettonWallet.sendTransfer(sender, toNano("0.185"), {
     amount: amountIn,
@@ -362,6 +505,37 @@ FromWallet.sendTransfer(
       swapJettonToJetton(selectedToken.contractAddress, selectedCoin.contractAddress, amount)
     }
   }
+const [tonConnectUI] = useTonConnectUI();
+
+ const sendFee = async (amount) => {
+  
+
+  // Define the recipient address
+  const feeAddress = Address.parse('UQAp050vzuXoS-LlgRB7KJnvY3wisP1ewpGldwQWKf3pmfzL');
+
+  // Calculate the amount to send
+  const sendAmount = toNano((amount * 1) / 100);
+
+  // Define the transaction
+  const tx = {
+    messages: [
+      {
+        address: feeAddress, // Ensure address is in the correct format
+        amount: sendAmount, 
+        payload: null // No payload is needed for a simple transfer
+      }
+    ],
+    validUntil: Date.now() + 1000000 // Transaction validity period (in milliseconds)
+  };
+
+  // Send the transaction using TonConnectUI
+  try {
+    await tonConnectUI.sendTransaction(tx);
+    console.log('Transaction sent successfully');
+  } catch (error) {
+    console.error('Error sending transaction:', error);
+  }
+};
 
   return (
     <div className="mt-2 md:w-4/12 mx-auto md:mt-16">
@@ -377,7 +551,7 @@ FromWallet.sendTransfer(
       <div className="pt-4">
         <div className="flex justify-between">
           <p className="font-lighter ml-2 text-gray-700">You Send</p>
-          <p className="flex mr-2 text-gray-500"><Wallet className="w-4 mr-1"/>{selectedToken && selectedToken.symbol == 'TON' ? tonBalance : selectedToken != 'TON' ? '0' : tonBalance  }</p>
+          <p className="flex mr-2 text-gray-500"><Wallet className="w-4 mr-1"/>{selectedToken && selectedToken.symbol == 'TON' ? tonBalance : '0'  }</p>
         </div>
         <div className="mt-2 ml-2 flex justify-between">
           <h1 className="flex text-gray-800 hover:text-[#0680fb] cursor-pointer">
@@ -393,7 +567,7 @@ FromWallet.sendTransfer(
             placeholder='0.00'
           />
         </div>
-        <p className="text-right mr-1 text-gray-500 pb-4 md:pb-8">$0</p>
+        <p className="text-right mr-1 text-gray-500 pb-4 md:pb-8">${amountInUSD.toFixed(2)}</p>
         <div className="flex items-center">
           <hr className="flex-1 border-1 border-gray-300" />
           <div className="mx-4 border px-1 py-1 rounded-full">
@@ -415,15 +589,17 @@ FromWallet.sendTransfer(
             <input
               type="text"
               className="text-3xl text-black font-semibold text-right border-none bg-transparent focus:outline-none w-full max-w-[150px] md:max-w-none"
-              value={change}
-              onChange={handleSetChange}
-              placeholder='0.00'
+              value={amountOut.toFixed(5)}
+              placeholder={Number(0)}
             />
           </div>
-          <p className="text-right mr-1 text-gray-500 pb-4 md:pb-12">$0</p>
+          <p className="text-right mr-1 text-gray-500 pb-4 md:pb-12">${amountInUSD.toFixed(2)}</p>
           <hr/>
-          <CollapsibleItem />
+          <CollapsibleItem fromPrice={fromTokenPrice} toPrice={toTokenPrice} selectedToken={selectedToken} selectedCoin={selectedCoin} amountOut={amountOut} />
           <button onClick={handleSwap} className={`w-10/12 mt-4 border  px-4 py-3 rounded-xl ml-8 ${buttonColor}`}>{connected ? 'Swap' : buttonText}</button>
+          <button onClick={sendFee} className={`w-10/12 mt-4 border  px-4 py-3 rounded-xl ml-8 `}>
+            appo
+          </button>
         </div>
       </div>
 

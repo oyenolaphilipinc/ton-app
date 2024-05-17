@@ -37,17 +37,17 @@ const Collapsible = ({ title, children }) => {
   );
 };
 
-const CollapsibleItem = () => {
+const CollapsibleItem = ({fromPrice, toPrice, selectedToken, selectedCoin, amountOut}) => {
   return (
     <div className="container mx-auto py-8">
-      <Collapsible title="1 Ton ≈ 0.253467882663 STON">
+      <Collapsible title={`${selectedToken ? `1 ${selectedToken.symbol}` : null} ≈ ${(fromPrice/toPrice).toFixed(4)} ${selectedCoin && selectedCoin.symbol} `}>
         <div className="flex justify-between">
-            <p className="text-lg text-gray-500">1 TON Price</p>
-            <p className="text-lg text-gray-500">≈ 0.239148991 STON</p>
+            <p className="text-lg text-gray-500">{selectedToken ? `1 ${selectedToken.symbol}` : null} </p>
+            <p className="text-lg text-gray-500">≈ {(fromPrice/toPrice).toFixed(4)} {selectedCoin && selectedCoin.symbol}</p>
         </div>
         <div className="flex justify-between">
-            <p className="text-lg text-gray-500">1 STON price</p>
-            <p className="text-lg text-gray-500">≈ 0.239148991 STON</p>
+            <p className="text-lg text-gray-500">1 {selectedCoin ? selectedCoin.symbol : null} price</p>
+            <p className="text-lg text-gray-500">≈ {(toPrice/fromPrice).toFixed(6)} {selectedToken &&selectedToken.symbol }</p>
         </div>
         <div className="flex justify-between">
             <p className="text-lg text-gray-500">Price impact</p>
@@ -55,12 +55,9 @@ const CollapsibleItem = () => {
         </div>
         <div className="flex justify-between">
             <p className="text-lg text-gray-500">Minimum received</p>
-            <p className="text-lg text-gray-500">≈ 23.7985 STON</p>
+            <p className="text-lg text-gray-500">≈ {amountOut.toFixed(5)} {selectedCoin && selectedCoin.symbol}</p>
         </div>
-        <div className="flex justify-between">
-            <p className="text-lg text-gray-500">Blockchain fee</p>
-            <p className="text-lg text-gray-500">≈ 0.08-0.3 TON</p>
-        </div>
+      
       </Collapsible>
     </div>
   );

@@ -28,5 +28,6 @@ export function useTonConnect(): {
 
     connected: tonConnectUI.connected,
     userAddress: TONAddress,
+    
   };
 }
