@@ -59,7 +59,7 @@ const Header = ({coins}) => {
   const {sender, userAddress, connected} = useTonConnect()
   const client = useTonClient()
   const [tonBalance, setTonBalance] = useState()
-  const [amountOut, setAmountOut] = useState(null)
+  const [amountOut, setAmountOut] = useState(0)
  const [amountInUSD, setAmountInUSD] = useState(0);
   const [fromTokenPrice, setFromTokenPrice] = useState(0); // State variable for fromTokenPrice
   const [toTokenPrice, setToTokenPrice] = useState(0);
@@ -199,7 +199,7 @@ const fetchEquivalentAmount = async (fromAddress, toAddress, amount) => {
           const equivalentAmount = (amount * fromTokenPrice) / toTokenPrice;
           console.log("Equivalent amount:", equivalentAmount);
           const amountInUSD = amount * fromTokenPrice
-          setAmountOut(equivalentAmount);
+          setAmountOut(equivalentAmount.toFixed(5));
           setAmountInUSD(amountInUSD)
           setFromTokenPrice(fromTokenPrice)
           setToTokenPrice(toTokenPrice)
@@ -589,8 +589,9 @@ const [tonConnectUI] = useTonConnectUI();
             <input
               type="text"
               className="text-3xl text-black font-semibold text-right border-none bg-transparent focus:outline-none w-full max-w-[150px] md:max-w-none"
-              value={amountOut.toFixed(5)}
+              value={amountOut}
               placeholder={Number(0)}
+              readOnly
             />
           </div>
           <p className="text-right mr-1 text-gray-500 pb-4 md:pb-12">${amountInUSD.toFixed(2)}</p>

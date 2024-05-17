@@ -43,11 +43,11 @@ const CollapsibleItem = ({fromPrice, toPrice, selectedToken, selectedCoin, amoun
       <Collapsible title={`${selectedToken ? `1 ${selectedToken.symbol}` : null} ≈ ${(fromPrice/toPrice).toFixed(4)} ${selectedCoin && selectedCoin.symbol} `}>
         <div className="flex justify-between">
             <p className="text-lg text-gray-500">{selectedToken ? `1 ${selectedToken.symbol}` : null} </p>
-            <p className="text-lg text-gray-500">≈ {(fromPrice/toPrice).toFixed(4)} {selectedCoin && selectedCoin.symbol}</p>
+            <p className="text-lg text-gray-500">≈ {fromPrice && toPrice && (fromPrice/toPrice).toFixed(4)} {selectedCoin && selectedCoin.symbol}</p>
         </div>
         <div className="flex justify-between">
             <p className="text-lg text-gray-500">1 {selectedCoin ? selectedCoin.symbol : null} price</p>
-            <p className="text-lg text-gray-500">≈ {(toPrice/fromPrice).toFixed(6)} {selectedToken &&selectedToken.symbol }</p>
+            <p className="text-lg text-gray-500">≈ {fromPrice && toPrice && (toPrice/fromPrice).toFixed(6)} {selectedToken &&selectedToken.symbol }</p>
         </div>
         <div className="flex justify-between">
             <p className="text-lg text-gray-500">Price impact</p>
@@ -55,7 +55,7 @@ const CollapsibleItem = ({fromPrice, toPrice, selectedToken, selectedCoin, amoun
         </div>
         <div className="flex justify-between">
             <p className="text-lg text-gray-500">Minimum received</p>
-            <p className="text-lg text-gray-500">≈ {amountOut.toFixed(5)} {selectedCoin && selectedCoin.symbol}</p>
+            <p className="text-lg text-gray-500">≈ {amountOut && amountOut.toFixed(5)} {selectedCoin && selectedCoin.symbol}</p>
         </div>
       
       </Collapsible>
