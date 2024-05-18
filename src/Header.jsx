@@ -90,7 +90,7 @@ const Header = ({coins}) => {
 
   useEffect(()=>{
    fetchBalance()
-  },[client])
+  },[])
 
     useEffect(() => {
     if (selectedToken && selectedCoin && amount) {
@@ -152,6 +152,8 @@ const fetchEquivalentAmount = async (fromAddress, toAddress, amount) => {
 
         console.log("fromTokenPrice:", fromTokenPrice);
         console.log("toTokenPrice:", toTokenPrice);
+        const amountInUSD = amount * fromTokenPrice
+        setAmountInUSD(amountInUSD)
 
         if (toTokenPrice !== 0) {
           const equivalentAmount = (amount * fromTokenPrice) / toTokenPrice;
@@ -161,10 +163,10 @@ const fetchEquivalentAmount = async (fromAddress, toAddress, amount) => {
            const priceImpactPercentage = ((equivalentAmount - expectedAmountOut) / equivalentAmount) * 100;
         console.log("Price Impact Percentage:", priceImpactPercentage.toFixed(2) + "%");
         const priceAMount = (expectedAmountOut * toTokenPrice)
-          const amountInUSD = amount * fromTokenPrice
+          
           console.log("real", amountInUSD)
           setPriceAmount(priceAMount)
-          setAmountInUSD(amountInUSD)
+          
           setAmountOut(expectedAmountOut);
           setPriceImpact(priceImpactPercentage)
           setFromTokenPrice(fromTokenPrice)
@@ -252,7 +254,7 @@ const fetchEquivalentAmount = async (fromAddress, toAddress, amount) => {
 
   const contractAddress = Address.parse(address);
   const jetton = client.open(JettonRoot.createFromAddress(contractAddress));
-    const jettonWallet = client.open(await jetton.getWallet(sender.address));
+
 
    
 
@@ -325,6 +327,7 @@ const fetchAdditionalContent = async (url) => {
   }
 
   try {
+    
     const response = await axios.get(url);
     return response.data;
   } catch (error) {
