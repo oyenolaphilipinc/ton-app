@@ -37,7 +37,7 @@ const Collapsible = ({ title, children }) => {
   );
 };
 
-const CollapsibleItem = ({fromPrice, toPrice, selectedToken, selectedCoin, amountOut}) => {
+const CollapsibleItem = ({fromPrice, toPrice, selectedToken, selectedCoin, amountOut, priceImpact}) => {
   return (
     <div className="container mx-auto py-8">
       <Collapsible title={`${selectedToken ? `1 ${selectedToken.symbol}` : null} ≈ ${(fromPrice/toPrice).toFixed(4)} ${selectedCoin && selectedCoin.symbol} `}>
@@ -51,11 +51,11 @@ const CollapsibleItem = ({fromPrice, toPrice, selectedToken, selectedCoin, amoun
         </div>
         <div className="flex justify-between">
             <p className="text-lg text-gray-500">Price impact</p>
-            <p className="text-lg text-green-600">≈ 0.01%</p>
+            <p className={priceImpact > 1 ? "text-lg text-green-600" : "text-lg text-red-600"}>≈ {priceImpact ? priceImpact.toFixed(2) : '1'}%</p>
         </div>
         <div className="flex justify-between">
             <p className="text-lg text-gray-500">Minimum received</p>
-            <p className="text-lg text-gray-500">≈ {amountOut && amountOut.toFixed(5)} {selectedCoin && selectedCoin.symbol}</p>
+            <p className="text-lg text-gray-500">≈ {amountOut ? amountOut : 0} {selectedCoin && selectedCoin.symbol}</p>
         </div>
       
       </Collapsible>

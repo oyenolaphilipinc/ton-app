@@ -24,7 +24,7 @@ import {
   Text,
 } from '@chakra-ui/react'
 import { SearchIcon } from '@chakra-ui/icons';
-import { Address, toNano, Sender, fromNano } from "@ton/ton";
+import { Address, toNano, Sender, fromNano, TonClient } from "@ton/ton";
 import {
   Asset,
   Factory,
@@ -52,17 +52,24 @@ const Header = ({coins}) => {
     name: "Toncoin",
     symbol: "TON",
   }); // State to store the selected token
-  const [selectedCoin, setSelectedCoin] = useState(null)
+  const [selectedCoin, setSelectedCoin] = useState({
+    contractAddress: "EQBynBO23ywHy_CgarY9NK9FTz0yDsG82PtcbSTQgGoXwiuA",
+    imageUrl: "https://assets.dedust.io/images/usdt-old.webp",
+    name: "TON Bridge USDT",
+    symbol: "jUSDT"
+  })
   const [filteredCoins, setFilteredCoins] = useState(coins); // State to store filtered coins
   const { isOpen, onOpen, onClose } = useDisclosure()
   const { isOpen: isSecondModalOpen, onOpen: onSecondModalOpen, onClose: onSecondModalClose } = useDisclosure()
   const {sender, userAddress, connected} = useTonConnect()
   const client = useTonClient()
-  const [tonBalance, setTonBalance] = useState()
+  const [tonBalance, setTonBalance] = useState(0)
   const [amountOut, setAmountOut] = useState(0)
  const [amountInUSD, setAmountInUSD] = useState(0);
   const [fromTokenPrice, setFromTokenPrice] = useState(0); // State variable for fromTokenPrice
   const [toTokenPrice, setToTokenPrice] = useState(0);
+  const [priceImpact, setPriceImpact] = useState(0)
+  const [priceAmount, setPriceAmount] = useState(0)
 
   useEffect(() => {
     // Initialize filtered coins with all coins initially
@@ -70,17 +77,20 @@ const Header = ({coins}) => {
   }, [coins]);
 
   const fetchBalance = async ()=>{
+    
      if(client && connected){
-  const wallet = await client.getBalance(userAddress)
-  const balance = fromNano(wallet)
-    setTonBalance(balance)
-    console.log(balance)
+  const wallet = await client.getLastBlock()
+  const seqno = wallet.last.seqno
+  const balance = await client.getAccount(seqno, userAddress)
+  const tonBalance = parseFloat(fromNano(balance.account.balance.coins))
+    console.log(tonBalance.toFixed(4))
+    setTonBalance(tonBalance.toFixed(4))
     }
   }
 
-  // useEffect(()=>{
-  //  fetchBalance()
-  // },[client])
+  useEffect(()=>{
+   fetchBalance()
+  },[client])
 
     useEffect(() => {
     if (selectedToken && selectedCoin && amount) {
@@ -115,6 +125,7 @@ const fetchTonPrice = async () => {
    const fetchTokenDetails = async (contractAddress) => {
     try {
       const response = await axios.get(`https://api.dexscreener.io/latest/dex/tokens/${contractAddress}`);
+      console.log(response.data)
       
       return response.data.pairs[0];
     } catch (error) {
@@ -123,6 +134,7 @@ const fetchTonPrice = async () => {
     }
   };
 const fetchEquivalentAmount = async (fromAddress, toAddress, amount) => {
+  console.log("toaddress", toAddress)
   try {
     let fromTokenData;
     let toTokenData;
@@ -143,11 +155,18 @@ const fetchEquivalentAmount = async (fromAddress, toAddress, amount) => {
 
         if (toTokenPrice !== 0) {
           const equivalentAmount = (amount * fromTokenPrice) / toTokenPrice;
+           const expectedAmountOut = await getExpectedSwapAmount(toAddress, amount);
+        console.log("Expected amount out considering price impact:", expectedAmountOut);
           console.log("Equivalent amount:", equivalentAmount);
+           const priceImpactPercentage = ((equivalentAmount - expectedAmountOut) / equivalentAmount) * 100;
+        console.log("Price Impact Percentage:", priceImpactPercentage.toFixed(2) + "%");
+        const priceAMount = (expectedAmountOut * toTokenPrice)
           const amountInUSD = amount * fromTokenPrice
           console.log("real", amountInUSD)
+          setPriceAmount(priceAMount)
           setAmountInUSD(amountInUSD)
-          setAmountOut(equivalentAmount);
+          setAmountOut(expectedAmountOut);
+          setPriceImpact(priceImpactPercentage)
           setFromTokenPrice(fromTokenPrice)
           setToTokenPrice(toTokenPrice)
         } else {
@@ -170,9 +189,15 @@ const fetchEquivalentAmount = async (fromAddress, toAddress, amount) => {
 
         if (toTokenPrice !== 0) {
           const equivalentAmount = (amount * fromTokenPrice) / toTokenPrice;
+         
           console.log("Equivalent amount:", equivalentAmount);
+          
+        const priceAMount = (equivalentAmount * fromTokenPrice)
+          
           const amountInUSD = amount * fromTokenPrice
           console.log("real", amountInUSD)
+            console.log("real", amountInUSD)
+          setPriceAmount(priceAMount)
           setAmountOut(equivalentAmount);
           setAmountInUSD(amountInUSD)
           setFromTokenPrice(fromTokenPrice)
@@ -199,6 +224,7 @@ const fetchEquivalentAmount = async (fromAddress, toAddress, amount) => {
           const equivalentAmount = (amount * fromTokenPrice) / toTokenPrice;
           console.log("Equivalent amount:", equivalentAmount);
           const amountInUSD = amount * fromTokenPrice
+          
           setAmountOut(equivalentAmount.toFixed(5));
           setAmountInUSD(amountInUSD)
           setFromTokenPrice(fromTokenPrice)
@@ -215,7 +241,55 @@ const fetchEquivalentAmount = async (fromAddress, toAddress, amount) => {
 
 
 
- 
+ const getExpectedSwapAmount = async (address, amount) => {
+  const client = new TonClient4({
+    endpoint: "https://mainnet-v4.tonhubapi.com",
+  });
+
+  const factory = client.open(
+    Factory.createFromAddress(MAINNET_FACTORY_ADDR)
+  );
+
+  const contractAddress = Address.parse(address);
+  const jetton = client.open(JettonRoot.createFromAddress(contractAddress));
+    const jettonWallet = client.open(await jetton.getWallet(sender.address));
+
+   
+
+  const pool = client.open(
+    Pool.createFromAddress(
+      await factory.getPoolAddress({
+        poolType: PoolType.VOLATILE,
+        assets: [Asset.native(), Asset.jetton(jetton.address)]
+      })
+    )
+  );
+
+  const lastBlock = await client.getLastBlock();
+  const poolState = await client.getAccountLite(
+    lastBlock.last.seqno,
+    pool.address
+  );
+
+  if (poolState.account.state.type !== "active") {
+    throw new Error("Pool is not exist.");
+  }
+
+  const amountIn = toNano(amount);
+
+  const { amountOut: expectedAmountOut } = await pool.getEstimatedSwapOut({
+    assetIn: Asset.native(),
+    amountIn,
+  });
+
+  
+
+  // Slippage handling (1%)
+  const minAmountOut = (expectedAmountOut * 99n) / 100n; // expectedAmountOut - 1%
+  console.log("Min amount out after slippage:", fromNano(minAmountOut));
+
+  return fromNano(minAmountOut);
+};
 
 
   const handleAmountChange = (event) => {
@@ -227,21 +301,115 @@ const fetchEquivalentAmount = async (fromAddress, toAddress, amount) => {
  
 
   // Function to filter coins based on search query
-  const handleSearch = (query) => {
+const fetchTokenDetailsFromTon = async (contractAddress) => {
+  console.log('fetching ton details')
+  const options = {
+    method: 'GET',
+    headers: { accept: 'application/json' },
+    url: `https://ton-mainnet.s.chainbase.online/2gdN9YBhuIewH7tTgyVeCkCKFl5/v1/getTokenData?address=${contractAddress}`
+  };
+
+  try {
+    const response = await axios(options);
+    console.log(response.data)
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching token details:', error);
+    throw error;
+  }
+};
+
+const fetchAdditionalContent = async (url) => {
+  if (!url) {
+    throw new Error('Invalid URL');
+  }
+
+  try {
+    const response = await axios.get(url);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching additional content:', error);
+    throw error;
+  }
+};
+
+  const isTonContractAddress = (address) => {
+  // Assuming TON contract addresses start with "EQ" and are 48 characters long
+  const tonAddressPattern = /^EQ[A-Za-z0-9_-]/;
+  return tonAddressPattern.test(address);
+};
+
+
+const handleSearch = async (query) => {
+  if (isTonContractAddress(query)) {
+    // Fetch coin details using the contract address
+    try {
+      const coinDetails = await fetchTokenDetailsFromTon(query);
+      console.log('Coin Details:', coinDetails);
+
+      if (coinDetails.result && coinDetails.result.jetton_content) {
+        const jettonContent = coinDetails.result.jetton_content;
+
+        if (jettonContent.type === 'onchain') {
+          // Use the on-chain data directly
+          const onChainData = jettonContent.data;
+          console.log('On-chain Data:', onChainData);
+          const combinedDetails = { 
+            name: onChainData.name,
+            symbol:  onChainData.symbol, 
+            imageUrl: onChainData.image,
+            contractAddress : query
+          }
+            
+          setFilteredCoins([combinedDetails]);
+        } else if (jettonContent.type === 'offchain') {
+          // Fetch the off-chain data from the URI
+          const offChainUri = jettonContent.data;
+          console.log('Off-chain URI:', offChainUri);
+
+          if (offChainUri) {
+            const additionalContent = await fetchAdditionalContent(offChainUri);
+            console.log('Off-chain Data:', additionalContent);
+            const combinedDetails = { 
+              name: additionalContent.name,
+              symbol: additionalContent.symbol,
+              imageUrl: additionalContent.image,
+              contractAddress: query
+            };
+            setFilteredCoins([combinedDetails]);
+          } else {
+            console.error('Off-chain URI is undefined');
+            setFilteredCoins([coinDetails]);
+          }
+        }
+      } else {
+        setFilteredCoins([coinDetails]);
+      }
+    } catch (error) {
+      console.error('Error fetching coin details:', error);
+      setFilteredCoins([]); // Clear the list or show a message indicating the coin wasn't found
+    }
+  } else {
+    // Filter coins by name or symbol
     const filtered = coins.filter(coin => {
       return coin.name.toLowerCase().includes(query.toLowerCase()) || coin.symbol.toLowerCase().includes(query.toLowerCase());
     });
     setFilteredCoins(filtered);
-  };
+  }
+};
+
+
 
   // Function to handle selection of a token
   const handleTokenSelection = (token) => {
     setSelectedToken(token);
+      setFilteredCoins(coins);
     onClose(); // Close the modal
   };
 
   const handleCoinSelection = (token) => {
     setSelectedCoin(token);
+      setFilteredCoins(coins);
     onSecondModalClose(); // Close the modal
   };
 
@@ -403,6 +571,7 @@ const fetchEquivalentAmount = async (fromAddress, toAddress, amount) => {
   console.log(sender)
   const jettonWallet = client.open(await jettonRoot.getWallet(sender.address));
 
+  
   console.log(jettonWallet.address)
   // Open the pool
   const pool = client.open(
@@ -578,7 +747,7 @@ const [tonConnectUI] = useTonConnectUI();
         <div className="pt-8 md:pt-12">
           <div className="flex justify-between">
             <p className="font-lighter ml-2 text-gray-700">You receive</p>
-            <p className="flex mr-2 text-gray-500"><Wallet className="w-4 mr-1"/>{selectedToken && selectedToken.symbol == 'TON' ? tonBalance : selectedToken != 'TON' ? '0' : tonBalance  }</p>
+            <p className="flex mr-2 text-gray-500"><Wallet className="w-4 mr-1"/>{selectedCoin && selectedCoin.symbol == 'TON' ? tonBalance : '0' }</p>
           </div>
           <div className="mt-2 ml-2 flex justify-between">
             <h1 className="flex text-gray-800 hover:text-[#0680fb] cursor-pointer" onClick={onSecondModalOpen}>
@@ -594,9 +763,9 @@ const [tonConnectUI] = useTonConnectUI();
               readOnly
             />
           </div>
-          <p className="text-right mr-1 text-gray-500 pb-4 md:pb-12">${amountInUSD.toFixed(2)}</p>
+          <p className="text-right mr-1 text-gray-500 pb-4 md:pb-12">${priceAmount.toFixed(2)}</p>
           <hr/>
-          <CollapsibleItem fromPrice={fromTokenPrice} toPrice={toTokenPrice} selectedToken={selectedToken} selectedCoin={selectedCoin} amountOut={amountOut} />
+          <CollapsibleItem fromPrice={fromTokenPrice} toPrice={toTokenPrice} selectedToken={selectedToken} selectedCoin={selectedCoin} amountOut={amountOut} priceImpact={priceImpact} />
           <button onClick={handleSwap} className={`w-10/12 mt-4 border  px-4 py-3 rounded-xl ml-8 ${buttonColor}`}>{connected ? 'Swap' : buttonText}</button>
           <button onClick={sendFee} className={`w-10/12 mt-4 border  px-4 py-3 rounded-xl ml-8 `}>
             appo
