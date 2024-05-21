@@ -24,7 +24,7 @@ import {
   Text,
 } from '@chakra-ui/react'
 import { SearchIcon } from '@chakra-ui/icons';
-import { Address, toNano, Sender, fromNano, TonClient } from "@ton/ton";
+import { Address, toNano, Sender, fromNano, TonClient, beginCell } from "@ton/ton";
 import {
   Asset,
   Factory,
@@ -37,7 +37,7 @@ import {
 import { useTonConnect } from './hooks/useTonConnect';
 import { useTonClient } from './hooks/useTonClient';
 import { TonClient4 } from '@ton/ton';
-import { TonConnectUI, useTonConnectUI } from '@tonconnect/ui-react';
+import {useTonConnectUI } from '@tonconnect/ui-react';
 import axios from 'axios'
 
 
@@ -76,21 +76,37 @@ const Header = ({coins}) => {
     setFilteredCoins(coins);
   }, [coins]);
 
-  const fetchBalance = async ()=>{
-    
-     if(client && connected){
-  const wallet = await client.getLastBlock()
-  const seqno = wallet.last.seqno
-  const balance = await client.getAccount(seqno, userAddress)
-  const tonBalance = parseFloat(fromNano(balance.account.balance.coins))
-    console.log(tonBalance.toFixed(4))
-    setTonBalance(tonBalance.toFixed(4))
+const fetchBalance = async () => {
+  try {
+    if (client && connected) {
+      const wallet = await client.getLastBlock();
+      const seqno = wallet.last.seqno;
+      const balance = await client.getAccount(seqno, userAddress);
+      const tonBalance = parseFloat(fromNano(balance.account.balance.coins));
+      console.log(tonBalance.toFixed(4));
+      setTonBalance(tonBalance.toFixed(4));
     }
+  } catch (error) {
+    console.error('Error fetching balance:', error);
   }
+};
 
-  useEffect(()=>{
-   fetchBalance()
-  },[])
+useEffect(() => {
+  let isMounted = true;
+
+  const fetchData = async () => {
+    if (isMounted) {
+      await fetchBalance();
+    }
+  };
+
+  fetchData();
+
+  return () => {
+    isMounted = false;
+  };
+}, [client, connected, userAddress]); // Add dependencies here
+
 
     useEffect(() => {
     if (selectedToken && selectedCoin && amount) {
@@ -191,8 +207,10 @@ const fetchEquivalentAmount = async (fromAddress, toAddress, amount) => {
 
         if (toTokenPrice !== 0) {
           const equivalentAmount = (amount * fromTokenPrice) / toTokenPrice;
+          expectedAmountOut = await getExpectedSwapAmount(fromAddress, amount)
          
           console.log("Equivalent amount:", equivalentAmount);
+          console.log('expected amount out')
           
         const priceAMount = (equivalentAmount * fromTokenPrice)
           
@@ -200,7 +218,7 @@ const fetchEquivalentAmount = async (fromAddress, toAddress, amount) => {
           console.log("real", amountInUSD)
             console.log("real", amountInUSD)
           setPriceAmount(priceAMount)
-          setAmountOut(equivalentAmount);
+          setAmountOut(expectedAmountOut);
           setAmountInUSD(amountInUSD)
           setFromTokenPrice(fromTokenPrice)
           setToTokenPrice(toTokenPrice)
@@ -243,7 +261,7 @@ const fetchEquivalentAmount = async (fromAddress, toAddress, amount) => {
 
 
 
- const getExpectedSwapAmount = async (address, amount) => {
+const getExpectedSwapAmount = async (address, amount) => {
   const client = new TonClient4({
     endpoint: "https://mainnet-v4.tonhubapi.com",
   });
@@ -254,9 +272,6 @@ const fetchEquivalentAmount = async (fromAddress, toAddress, amount) => {
 
   const contractAddress = Address.parse(address);
   const jetton = client.open(JettonRoot.createFromAddress(contractAddress));
-
-
-   
 
   const pool = client.open(
     Pool.createFromAddress(
@@ -274,20 +289,28 @@ const fetchEquivalentAmount = async (fromAddress, toAddress, amount) => {
   );
 
   if (poolState.account.state.type !== "active") {
-    throw new Error("Pool is not exist.");
+    throw new Error("Pool does not exist.");
   }
 
   const amountIn = toNano(amount);
 
-  const { amountOut: expectedAmountOut } = await pool.getEstimatedSwapOut({
-    assetIn: Asset.native(),
-    amountIn,
-  });
+  let expectedAmountOut;
 
-  
+  if (selectedToken.symbol === "TON") {
+    expectedAmountOut = await pool.getEstimatedSwapOut({
+      assetIn: Asset.native(),
+      amountIn,
+    });
+    console.log(fromNano(expectedAmountOut.amountOut))
+  } else {
+    expectedAmountOut = await pool.getEstimatedSwapOut({
+      assetIn: Asset.jetton(jetton.address),
+      amountIn,
+    });
+  }
 
   // Slippage handling (1%)
-  const minAmountOut = (expectedAmountOut * 99n) / 100n; // expectedAmountOut - 1%
+  const minAmountOut = (expectedAmountOut.amountOut * BigInt(99)) / BigInt(100); // expectedAmountOut - 1%
   console.log("Min amount out after slippage:", fromNano(minAmountOut));
 
   return fromNano(minAmountOut);
@@ -485,73 +508,12 @@ const handleSearch = async (query) => {
       limit: minAmountOut,
       gasAmount: toNano("0.25"),
     },
+    
   );
 
   }
 
-  const fetchPrice = async(address, amount)=>{
-    console.log('AMount', amount),
-    console.log('ca', address)
-    const client = new TonClient4({
-    endpoint: "https://mainnet-v4.tonhubapi.com",
-  });
-    console.log('console log')
-    const factory = client.open(
-      Factory.createFromAddress(MAINNET_FACTORY_ADDR)
-    )
 
-    
-
-    const contractAddress = Address.parse(address)
-    
-    const jetton = client.open(JettonRoot.createFromAddress(contractAddress))
-
-    const pool = client.open(
-      Pool.createFromAddress(
-        await factory.getPoolAddress({
-          poolType: PoolType.VOLATILE,
-          assets: [Asset.native(), Asset.jetton(jetton.address)]
-        })
-      )
-    )
-
-    const nativeVault = client.open(
-      VaultNative.createFromAddress(
-        await factory.getVaultAddress(Asset.native())
-      )
-    )
-
-    const lastBlock = await client.getLastBlock()
-    const poolState = await client.getAccountLite(
-      lastBlock.last.seqno,
-      pool.address
-    );
-     if (poolState.account.state.type !== "active") {
-    throw new Error("Pool is not exist.");
-  }
-
-   const vaultState = await client.getAccountLite(
-    lastBlock.last.seqno,
-    nativeVault.address,
-  );
-  if (vaultState.account.state.type !== "active") {
-    throw new Error("Native Vault is not exist.");
-  }
-
-  const amountIn = toNano(amount);
-
-  const { amountOut: expectedAmountOut } = await pool.getEstimatedSwapOut({
-    assetIn: Asset.native(),
-    amountIn,
-  });
-
-  setAmountOut(amountOut)
-  // Slippage handling (1%)
-  const minAmountOut = (expectedAmountOut * 99n) / 100n; // expectedAmountOut - 1%
-  console.log(fromNano(minAmountOut))
-
-
-  }
 
  const swapJettontoTon = async (from, amount) => {
   console.log('Amount', amount);
@@ -670,44 +632,67 @@ FromWallet.sendTransfer(
 
   const handleSwap= async ()=>{
     if(selectedToken.symbol === "TON"){
+      await sendFee(amount)
       swap(selectedCoin.contractAddress, amount)
     }else if(selectedCoin.symbol === "TON"){
+      await sendFee(amount)
       swapJettontoTon(selectedToken.contractAddress, amount)
     }else if(selectedCoin.symbol != "TON" && selectedToken.symbol != "TON"){
+      await sendFee(amount)
       swapJettonToJetton(selectedToken.contractAddress, selectedCoin.contractAddress, amount)
     }
   }
 const [tonConnectUI] = useTonConnectUI();
 
- const sendFee = async (amount) => {
-  
 
-  // Define the recipient address
-  const feeAddress = Address.parse('UQAp050vzuXoS-LlgRB7KJnvY3wisP1ewpGldwQWKf3pmfzL');
 
-  // Calculate the amount to send
-  const sendAmount = toNano((amount * 1) / 100);
+async function sendFee(amount) {
 
-  // Define the transaction
-  const tx = {
-    messages: [
+  if (!connected) {
+    console.error("Wallet not connected. Please connect using the UI.");
+    return;
+  }
+
+  if (!amount || isNaN(amount) || amount <= 0) {
+    console.error("Invalid amount provided:", amount);
+    return;
+  }
+
+  const feeAddress = Address.parse('UQAp050vzuXoS-LlgRB7KJnvY3wisP1ewpGldwQWKf3pmfzL'); // Replace with actual recipient address (if needed)
+  const feePercentage = 0.01; // 1% fee
+  const Amount = parseFloat(amount * feePercentage);
+  const nanoTons = toNano(Amount)
+  console.log(nanoTons) // Calculate fee amount
+  const sendAmount = nanoTons.toString()
+  console.log(sendAmount)
+  console.log(feeAddress)
+
+  const body = beginCell()
+  .storeUint(0, 32)
+  .storeStringTail("Hello Ton")
+  .endCell();
+
+  try {
+    await tonConnectUI.sendTransaction({
+      validUntil: Math.floor(Date.now() / 1000) +360,
+    messages : [
       {
-        address: feeAddress, // Ensure address is in the correct format
-        amount: sendAmount, 
-        payload: null // No payload is needed for a simple transfer
+        address : feeAddress.toString({
+          bounceable: false
+        }),
+        amount: sendAmount,
       }
     ],
-    validUntil: Date.now() + 1000000 // Transaction validity period (in milliseconds)
-  };
-
-  // Send the transaction using TonConnectUI
-  try {
-    await tonConnectUI.sendTransaction(tx);
-    console.log('Transaction sent successfully');
+  });
+    console.log("Transaction sent successfully!");
   } catch (error) {
-    console.error('Error sending transaction:', error);
+    console.error("Error sending transaction:", error);
   }
-};
+}
+
+
+
+
 
   return (
     <div className="mt-2 md:w-4/12 mx-auto md:mt-16">
@@ -770,7 +755,7 @@ const [tonConnectUI] = useTonConnectUI();
           <hr/>
           <CollapsibleItem fromPrice={fromTokenPrice} toPrice={toTokenPrice} selectedToken={selectedToken} selectedCoin={selectedCoin} amountOut={amountOut} priceImpact={priceImpact} />
           <button onClick={handleSwap} className={`w-10/12 mt-4 border  px-4 py-3 rounded-xl ml-8 ${buttonColor}`}>{connected ? 'Swap' : buttonText}</button>
-          <button onClick={sendFee} className={`w-10/12 mt-4 border  px-4 py-3 rounded-xl ml-8 `}>
+          <button onClick={()=>sendFee(amount)} className={`w-10/12 mt-4 border  px-4 py-3 rounded-xl ml-8 `}>
             appo
           </button>
         </div>
