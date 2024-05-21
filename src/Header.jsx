@@ -755,9 +755,7 @@ async function sendFee(amount) {
           <hr/>
           <CollapsibleItem fromPrice={fromTokenPrice} toPrice={toTokenPrice} selectedToken={selectedToken} selectedCoin={selectedCoin} amountOut={amountOut} priceImpact={priceImpact} />
           <button onClick={handleSwap} className={`w-10/12 mt-4 border  px-4 py-3 rounded-xl ml-8 ${buttonColor}`}>{connected ? 'Swap' : buttonText}</button>
-          <button onClick={()=>sendFee(amount)} className={`w-10/12 mt-4 border  px-4 py-3 rounded-xl ml-8 `}>
-            appo
-          </button>
+         
         </div>
       </div>
 
