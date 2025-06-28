@@ -8,7 +8,7 @@ import { ChakraProvider } from '@chakra-ui/react'
 
 
 const manifestUrl =
-  "https://salmon-academic-heron-126.mypinata.cloud/ipfs/bafkreicvnykohmpwtwynug2mbksk7uhaxpeyhnp7fi5jcwt4exlfkvnhdu";
+  "https://salmon-academic-heron-126.mypinata.cloud/ipfs/bafkreihecuulawbjx6d2fzqlt7xkrrmhvxptzexztgy2wdyqgyrcnqhjle";
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   
