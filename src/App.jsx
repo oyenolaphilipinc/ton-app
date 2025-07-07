@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import "./App.css";
 import Navbar from './Navbar';
 import Header from './Header';
+import Liquidity from './Liquidity';
 import Footer from './Footer';
 import { DeDustClient } from '@dedust/sdk';
 import { Spinner, Flex } from "@chakra-ui/react";
@@ -9,6 +10,7 @@ import { Spinner, Flex } from "@chakra-ui/react";
 const App = () => {
   const [coins, setCoins] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('swap'); // 'swap' or 'liquidity'
 
   const getPools = async () => {
     try {
@@ -57,7 +59,7 @@ const App = () => {
 
   return (
     <div>
-      <Navbar />
+      <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
       {loading ? (
         <Flex
           height="100vh"
@@ -74,7 +76,11 @@ const App = () => {
         </Flex>
       ) : (
         <div>
-          <Header coins={coins} />
+          {activeTab === 'swap' ? (
+            <Header coins={coins} />
+          ) : (
+            <Liquidity coins={coins} />
+          )}
           <Footer />
         </div>
       )}

@@ -116,7 +116,7 @@ useEffect(() => {
 
 
 const fetchTonPrice = async () => {
-  const apiKey = 'CG-HVh6stdWnBt3jz9oHydUvJMa'; // Replace with your actual API key
+  const apiKey = 'CG-HoPo6Lc1dWvBD8p1Pf33coLT'; // Replace with your actual API key
 
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
@@ -207,16 +207,16 @@ const fetchEquivalentAmount = async (fromAddress, toAddress, amount) => {
 
         if (toTokenPrice !== 0) {
           const equivalentAmount = (amount * fromTokenPrice) / toTokenPrice;
-          expectedAmountOut = await getExpectedSwapAmount(fromAddress, amount)
+          const expectedAmountOut = await getExpectedSwapAmount(fromAddress, amount)
          
           console.log("Equivalent amount:", equivalentAmount);
           console.log('expected amount out')
           
-        const priceAMount = (equivalentAmount * fromTokenPrice)
+          const priceAMount = (parseFloat(expectedAmountOut) * toTokenPrice)
           
           const amountInUSD = amount * fromTokenPrice
           console.log("real", amountInUSD)
-            console.log("real", amountInUSD)
+          console.log("real", amountInUSD)
           setPriceAmount(priceAMount)
           setAmountOut(expectedAmountOut);
           setAmountInUSD(amountInUSD)
@@ -292,7 +292,8 @@ const getExpectedSwapAmount = async (address, amount) => {
     throw new Error("Pool does not exist.");
   }
 
-  const amountIn = toNano(amount);
+  // Use correct decimal places for amountIn
+  const amountIn = selectedToken.symbol === "TON" ? toNano(amount) : BigInt(Math.floor(amount * 10**6)); // Use 6 decimals for jettons
 
   let expectedAmountOut;
 
@@ -301,19 +302,48 @@ const getExpectedSwapAmount = async (address, amount) => {
       assetIn: Asset.native(),
       amountIn,
     });
-    console.log(fromNano(expectedAmountOut.amountOut))
+    console.log("TON to Jetton - Raw amount out:", expectedAmountOut.amountOut.toString());
+    
+    // For jettons, we need to handle different decimal places
+    let decimals = 6; // Default for most jettons
+    if (selectedCoin.symbol === "jUSDT") {
+      decimals = 6;
+    } else if (selectedCoin.symbol === "jUSDC") {
+      decimals = 6;
+    }
+    
+    const divisor = BigInt(10 ** decimals);
+    const result = Number(expectedAmountOut.amountOut) / Number(divisor);
+    console.log("TON to Jetton - Converted amount out:", result);
   } else {
     expectedAmountOut = await pool.getEstimatedSwapOut({
       assetIn: Asset.jetton(jetton.address),
       amountIn,
     });
+    console.log("Jetton to TON - Raw amount out:", expectedAmountOut.amountOut.toString());
+    console.log("Jetton to TON - Converted amount out:", fromNano(expectedAmountOut.amountOut));
   }
 
   // Slippage handling (1%)
   const minAmountOut = (expectedAmountOut.amountOut * BigInt(99)) / BigInt(100); // expectedAmountOut - 1%
-  console.log("Min amount out after slippage:", fromNano(minAmountOut));
-
-  return fromNano(minAmountOut);
+  
+  if (selectedToken.symbol === "TON") {
+    // For jettons, use the same decimal handling
+    let decimals = 6; // Default for most jettons
+    if (selectedCoin.symbol === "jUSDT") {
+      decimals = 6;
+    } else if (selectedCoin.symbol === "jUSDC") {
+      decimals = 6;
+    }
+    
+    const divisor = BigInt(10 ** decimals);
+    const result = Number(minAmountOut) / Number(divisor);
+    console.log("Min amount out after slippage (jetton):", result);
+    return result.toString();
+  } else {
+    console.log("Min amount out after slippage (TON):", fromNano(minAmountOut));
+    return fromNano(minAmountOut);
+  }
 };
 
 
@@ -727,7 +757,22 @@ async function sendFee(amount) {
         <p className="text-right mr-1 text-gray-500 pb-4 md:pb-8">${amountInUSD.toFixed(2)}</p>
         <div className="flex items-center">
           <hr className="flex-1 border-1 border-gray-300" />
-          <div className="mx-4 border px-1 py-1 rounded-full">
+          <div 
+            className="mx-4 border px-1 py-1 rounded-full cursor-pointer hover:bg-blue-50 transition-colors"
+            onClick={() => {
+              // Swap the selected tokens
+              const tempToken = selectedToken;
+              const tempCoin = selectedCoin;
+              setSelectedToken(tempCoin);
+              setSelectedCoin(tempToken);
+              // Clear amounts when swapping
+              setAmount('');
+              setAmountOut(0);
+              setAmountInUSD(0);
+              setPriceAmount(0);
+              setPriceImpact(0);
+            }}
+          >
             <ArrowRightLeft className="text-[#0680fb]" />
           </div>
           <hr className="flex-1 border-1 border-gray-300" />
@@ -754,6 +799,17 @@ async function sendFee(amount) {
           <p className="text-right mr-1 text-gray-500 pb-4 md:pb-12">${priceAmount.toFixed(2)}</p>
           <hr/>
           <CollapsibleItem fromPrice={fromTokenPrice} toPrice={toTokenPrice} selectedToken={selectedToken} selectedCoin={selectedCoin} amountOut={amountOut} priceImpact={priceImpact} />
+          
+          {/* Test Liquidity Button */}
+          {connected && selectedToken && selectedCoin && (
+            <button 
+              onClick={() => testLiquidityImpact(selectedCoin.contractAddress)}
+              className="w-10/12 mt-2 border px-4 py-2 rounded-xl ml-8 bg-gray-100 text-gray-700 hover:bg-gray-200"
+            >
+              Test Liquidity Impact
+            </button>
+          )}
+          
           <button onClick={handleSwap} className={`w-10/12 mt-4 border  px-4 py-3 rounded-xl ml-8 ${buttonColor}`}>{connected ? 'Swap' : buttonText}</button>
          
         </div>
