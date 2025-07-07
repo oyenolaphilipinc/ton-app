@@ -6,6 +6,7 @@ import Liquidity from './Liquidity';
 import Footer from './Footer';
 import { DeDustClient } from '@dedust/sdk';
 import { Spinner, Flex } from "@chakra-ui/react";
+import ErrorBoundary from './components/ErrorBoundary';
 
 const App = () => {
   const [coins, setCoins] = useState(null);
@@ -79,7 +80,9 @@ const App = () => {
           {activeTab === 'swap' ? (
             <Header coins={coins} />
           ) : (
-            <Liquidity coins={coins} />
+            <ErrorBoundary>
+              <Liquidity coins={coins} />
+            </ErrorBoundary>
           )}
           <Footer />
         </div>

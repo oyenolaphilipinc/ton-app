@@ -86,6 +86,7 @@ const Liquidity = ({ coins }) => {
   const [tonBalance, setTonBalance] = useState(0);
   const [poolShare, setPoolShare] = useState(0);
   const [impermanentLoss, setImpermanentLoss] = useState(0);
+  const [error, setError] = useState(null);
 
   // Fetch available pools
   const fetchPools = async () => {
@@ -124,8 +125,10 @@ const Liquidity = ({ coins }) => {
 
       setPools(formattedPools);
       setLoading(false);
+      setError(null);
     } catch (error) {
       console.error('Error fetching pools:', error);
+      setError('Failed to fetch liquidity pools. Please try again later.');
       setLoading(false);
     }
   };
@@ -274,6 +277,25 @@ const Liquidity = ({ coins }) => {
     );
   }
 
+  if (error) {
+    return (
+      <Flex height="100vh" alignItems="center" justifyContent="center">
+        <div className="p-4 bg-red-100 text-red-800 rounded">
+          <h2>Error</h2>
+          <p>{error}</p>
+        </div>
+      </Flex>
+    );
+  }
+
+  if (!pools || pools.length === 0) {
+    return (
+      <Flex height="100vh" alignItems="center" justifyContent="center">
+        <Text>No liquidity pools found.</Text>
+      </Flex>
+    );
+  }
+
   return (
     <div className="mt-2 md:w-4/12 mx-auto md:mt-16">
       <div className="flex justify-around pb-2">
@@ -306,11 +328,11 @@ const Liquidity = ({ coins }) => {
                   <CardBody>
                     <Flex justify="space-between" align="center">
                       <Flex align="center" gap={2}>
-                        <Image src={pool.tokenA.imageUrl} w={8} h={8} rounded="full" />
-                        <Text fontWeight="bold">{pool.tokenA.symbol}</Text>
+                        <Image src={pool.tokenA?.imageUrl || '/tons.png'} w={8} h={8} rounded="full" />
+                        <Text fontWeight="bold">{pool.tokenA?.symbol || 'N/A'}</Text>
                         <Text>/</Text>
-                        <Image src={pool.tokenB.imageUrl} w={8} h={8} rounded="full" />
-                        <Text fontWeight="bold">{pool.tokenB.symbol}</Text>
+                        <Image src={pool.tokenB?.imageUrl || '/tons.png'} w={8} h={8} rounded="full" />
+                        <Text fontWeight="bold">{pool.tokenB?.symbol || 'N/A'}</Text>
                       </Flex>
                       <Badge colorScheme="green">${parseFloat(pool.tvl).toFixed(2)}</Badge>
                     </Flex>
@@ -344,11 +366,11 @@ const Liquidity = ({ coins }) => {
                     <CardBody>
                       <Flex justify="space-between" align="center">
                         <Flex align="center" gap={2}>
-                          <Image src={position.pool.tokenA.imageUrl} w={8} h={8} rounded="full" />
-                          <Text fontWeight="bold">{position.pool.tokenA.symbol}</Text>
+                          <Image src={position.pool?.tokenA?.imageUrl || '/tons.png'} w={8} h={8} rounded="full" />
+                          <Text fontWeight="bold">{position.pool?.tokenA?.symbol || 'N/A'}</Text>
                           <Text>/</Text>
-                          <Image src={position.pool.tokenB.imageUrl} w={8} h={8} rounded="full" />
-                          <Text fontWeight="bold">{position.pool.tokenB.symbol}</Text>
+                          <Image src={position.pool?.tokenB?.imageUrl || '/tons.png'} w={8} h={8} rounded="full" />
+                          <Text fontWeight="bold">{position.pool?.tokenB?.symbol || 'N/A'}</Text>
                         </Flex>
                         <Badge colorScheme="blue">${position.value}</Badge>
                       </Flex>
@@ -377,15 +399,15 @@ const Liquidity = ({ coins }) => {
                     const pool = pools.find(p => p.address === e.target.value);
                     setSelectedPool(pool);
                     if (pool) {
-                      setSelectedTokenA(pool.tokenA);
-                      setSelectedTokenB(pool.tokenB);
+                      setSelectedTokenA(pool.tokenA || {});
+                      setSelectedTokenB(pool.tokenB || {});
                     }
                   }}
                 >
                   <option value="">Select a pool...</option>
                   {pools.map((pool, index) => (
                     <option key={index} value={pool.address}>
-                      {pool.tokenA.symbol}/{pool.tokenB.symbol}
+                      {(pool.tokenA?.symbol || 'N/A')}/{(pool.tokenB?.symbol || 'N/A')}
                     </option>
                   ))}
                 </select>
@@ -396,11 +418,11 @@ const Liquidity = ({ coins }) => {
                   {/* Token A Input */}
                   <div>
                     <div className="flex justify-between mb-2">
-                      <Text fontWeight="medium">Amount {selectedTokenA.symbol}</Text>
-                      <Text className="text-gray-500">Balance: {selectedTokenA.symbol === 'TON' ? tonBalance : '0'}</Text>
+                      <Text fontWeight="medium">Amount {selectedTokenA?.symbol || 'N/A'}</Text>
+                      <Text className="text-gray-500">Balance: {selectedTokenA?.symbol === 'TON' ? tonBalance : '0'}</Text>
                     </div>
                     <div className="flex items-center border border-gray-300 rounded-lg p-3">
-                      <img src={selectedTokenA.imageUrl} width={32} height={32} className="rounded-full mr-2" />
+                      <img src={selectedTokenA?.imageUrl || '/tons.png'} width={32} height={32} className="rounded-full mr-2" />
                       <input
                         type="number"
                         className="flex-1 text-lg border-none bg-transparent focus:outline-none"
@@ -414,11 +436,11 @@ const Liquidity = ({ coins }) => {
                   {/* Token B Input */}
                   <div>
                     <div className="flex justify-between mb-2">
-                      <Text fontWeight="medium">Amount {selectedTokenB.symbol}</Text>
+                      <Text fontWeight="medium">Amount {selectedTokenB?.symbol || 'N/A'}</Text>
                       <Text className="text-gray-500">Balance: 0</Text>
                     </div>
                     <div className="flex items-center border border-gray-300 rounded-lg p-3">
-                      <img src={selectedTokenB.imageUrl} width={32} height={32} className="rounded-full mr-2" />
+                      <img src={selectedTokenB?.imageUrl || '/tons.png'} width={32} height={32} className="rounded-full mr-2" />
                       <input
                         type="number"
                         className="flex-1 text-lg border-none bg-transparent focus:outline-none"
@@ -477,7 +499,7 @@ const Liquidity = ({ coins }) => {
                   <option value="">Select a position...</option>
                   {userPositions.map((position, index) => (
                     <option key={index} value={position.id}>
-                      {position.pool.tokenA.symbol}/{position.pool.tokenB.symbol} - ${position.value}
+                      {(position.pool?.tokenA?.symbol || 'N/A')}/{(position.pool?.tokenB?.symbol || 'N/A')} - ${position.value}
                     </option>
                   ))}
                 </select>
